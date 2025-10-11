@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banana Death Predictor 🍌</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>🍌 Banana Death Predictor</h1>
+        <p class="subtitle">Upload a banana photo to predict its remaining lifespan</p>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📸</div>
+            <p>Click to upload or drag and drop</p>
+            <p style="font-size: 12px; color: #999; margin-top: 10px;">PNG, JPG up to 10MB</p>
+        </div>
+        
+        <input type="file" id="fileInput" accept="image/*">
+        
+        <img id="preview" class="preview-image">
+        
+        <button id="predictBtn" disabled>Predict Banana Death</button>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing your banana...</p>
+        </div>
+        
+        <div class="error" id="error"></div>
+        
+        <div class="result" id="result">
+            <div class="days-big" id="daysValue">-</div>
+            <p style="text-align: center; color: #666; margin-bottom: 20px;">days until banana death</p>
+            
+            <div class="result-item">
+                <span class="result-label">Ripeness Stage:</span>
+                <span class="result-value" id="ripeness">-</span>
+            </div>
+            
+            <div class="result-item">
+                <span class="result-label">Confidence:</span>
+                <span class="result-value" id="confidence">-</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const preview = document.getElementById('preview');
+        const predictBtn = document.getElementById('predictBtn');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const error = document.getElementById('error');
+        
+        let selectedFile = null;
+        
+        // Click to upload
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        // File selected
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+        
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+        
+        function handleFile(file) {
+            if (!file || !file.type.startsWith('image/')) {
+                showError('Please select a valid image file');
+                return;
+            }
+            
+            selectedFile = file;
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+            
+            // Enable predict button
+            predictBtn.disabled = false;
+            result.style.display = 'none';
+            error.style.display = 'none';
+        }
+        
+        // Predict button
+        predictBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+            
+            // Show loading
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            error.style.display = 'none';
+            predictBtn.disabled = true;
+            
+            try {
+                // Create form data
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                
+                // Send to backend
+                const response = await fetch('http://localhost:8080/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Prediction failed');
+                }
+                
+                const data = await response.json();
+                
+                // Show results
+                document.getElementById('daysValue').textContent = data.days_until_death;
+                document.getElementById('ripeness').textContent = data.ripeness_stage;
+                document.getElementById('confidence').textContent = (data.confidence * 100).toFixed(1) + '%';
+                
+                result.style.display = 'block';
+                
+            } catch (err) {
+                showError('Failed to predict. Make sure the backend is running!');
+            } finally {
+                loading.style.display = 'none';
+                predictBtn.disabled = false;
+            }
+        });
+        
+        function showError(message) {
+            error.textContent = message;
+            error.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
